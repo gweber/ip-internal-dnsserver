@@ -34,6 +34,8 @@ sock = socket.socket(socket.AF_INET, # IP
         socket.SOCK_DGRAM) # udp
 
 sock.bind((ip, port))
+print(f"server started on {ip}:{port}...")
+
 while True:
     ret = []
     # fail set to 0, if it changes along the path, give it out ... TODO
@@ -157,7 +159,7 @@ while True:
         # ret.append(b'\x00\x00')
 
 
-        print("return", ret)
+        #print("return", ret)
 
 
         sock.sendto(b"".join(ret), addr)
