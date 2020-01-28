@@ -1,14 +1,15 @@
 import socket
+import sys, traceback
+
 
 ip = "127.0.0.1" # '' for any interface
-port = 53
-
+port = 53535
 domainname = "ip.example.com"
+
 ip_label_list = domainname.split('.')
 #make binary objects to faster compare
 ip_label_list = list(map(lambda x: x.encode(), ip_label_list))
 ip_label_list.reverse()
-#print(ip_label_list)
 
 
 def create_flags(hqr=1, hopcode=1, haa=1, htc=0, hrd=0, hra=0, hz=0, hrcode=0):
@@ -30,7 +31,7 @@ def create_flags(hqr=1, hopcode=1, haa=1, htc=0, hrd=0, hra=0, hz=0, hrcode=0):
 
 
 sock = socket.socket(socket.AF_INET, # IP
-                     socket.SOCK_DGRAM) # udp
+        socket.SOCK_DGRAM) # udp
 
 sock.bind((ip, port))
 while True:
@@ -38,21 +39,23 @@ while True:
     # fail set to 0, if it changes along the path, give it out ... TODO
     fail = 0
     # rfc 1123 2.5 635 hostname+header+x (TODO)
-    data,addr = sock.recvfrom(647)
+    data, addr = sock.recvfrom(647)
     #print(f"connect from {addr} for {data}")
     try:
         request = {}
         request['id'] = data[0:2]
+        # we send a reply & 128
         request['type'] = data[2] & 128
+        # we only handle queries,
         request['opcode'] = data[2] & 120
         request['aa'] = data[2] & 4
         request['tc'] = data[2] & 2
         request['rd'] = data[2] & 1
         request['ra'] = data[3] & 128
-        request['z'] = data[3] & 64 
+        request['z'] = data[3] & 64
         request['ad'] = data[3] & 32
         request['cd'] = data[3] & 16
-        
+
         request['qdcount'] = int.from_bytes(data[4:6], byteorder="big")
         request['ancount'] = int.from_bytes(data[6:8], byteorder="big")
         request['nscount'] = int.from_bytes(data[8:10], byteorder="big")
@@ -60,14 +63,17 @@ while True:
 
         # iterate over labels indicating the length of next label
         # 3www6google2de0
-        # initial pos @data 12
+        # initial pos @data 12 after header
         pos = 12
         labels = []
         # request is terminated with a %00
         while data[pos] != 0 and pos < len(data):
-            labels.append(data[ pos + 1 : pos + 1 + data[pos]])
+            if (pos + data[pos] < len(data)-4 ):
+                labels.append(data[ pos + 1 : pos + 1 + data[pos]])
             #move pointer x bytes forward, add the pos byte
-            pos += data[pos] + 1
+                pos += data[pos] + 1
+            else:
+                fail = 1
         #print(f"pointer is @{pos}")
         request['length'] = pos + 1 - 12
 
@@ -84,6 +90,7 @@ while True:
         #print("labels after deletion: ", labels)
 
         # check the request type TODO
+        # 1 is an A query
         if int.from_bytes(request['type'], byteorder="big") == 1:
             if len(labels) >= 4:
                 answer = []
@@ -96,10 +103,10 @@ while True:
                 else:
                     answer = b"".join(answer)
 
-        
-        
+
+
         request['class'] = data[12 + request['length'] + 2 : 12 + request['length'] +4]
-                
+
         #print("request", request)
 
         # copy the id to the answer
@@ -140,14 +147,17 @@ while True:
         # ret.append(b'\x00\x00')
         # # data length
         # ret.append(b'\x00\x00')
-        
 
-        #print("return", ret)
+
+        print("return", ret)
 
 
         sock.sendto(b"".join(ret), addr)
 
     except Exception as e:
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        print("*** print_tb:")
+        traceback.print_tb(exc_traceback, limit=1, file=sys.stdout)
         # creteheader(id, qr, op, aa, tc, rd, ra, hz, rcode
         #create_header(rid, 1, 0,  1,  0,  0,  0,  0,  1
         print("error in data:", e)
