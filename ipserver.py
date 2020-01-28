@@ -68,11 +68,13 @@ while True:
         labels = []
         # request is terminated with a %00
         while data[pos] != 0 and pos < len(data):
+            # make sure the label is not pointint behind the lenght of the data
             if (pos + data[pos] < len(data)-4 ):
                 labels.append(data[ pos + 1 : pos + 1 + data[pos]])
-            #move pointer x bytes forward, add the pos byte
+                #move pointer x bytes forward, add the pos byte
                 pos += data[pos] + 1
             else:
+                # set fail error code to format error
                 fail = 1
         #print(f"pointer is @{pos}")
         request['length'] = pos + 1 - 12
@@ -94,15 +96,21 @@ while True:
         if int.from_bytes(request['type'], byteorder="big") == 1:
             if len(labels) >= 4:
                 answer = []
+                allnum = True
                 try:
+                    # iterate over the first four elements, if all are numbers, below 255, eq 0, we can use it
                     for i in labels[0:4]:
-                        answer.append( int(i.decode()).to_bytes(1, byteorder="big"))
+                        if i.isdigit():
+                            answer.append( int(i.decode()).to_bytes(1, byteorder="big"))
+                        else:
+                            allnum = False
                 except Exception as e:
                     print("error in convert", e)
                     fail=1;
                 else:
                     answer = b"".join(answer)
-
+            if (not allnum):
+                fail = 1
 
 
         request['class'] = data[12 + request['length'] + 2 : 12 + request['length'] +4]
