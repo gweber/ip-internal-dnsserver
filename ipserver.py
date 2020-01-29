@@ -1,5 +1,4 @@
 import socket
-import sys, traceback
 
 
 ip = "127.0.0.1" # '' for any interface
@@ -163,11 +162,7 @@ while True:
 
 
         sock.sendto(b"".join(ret), addr)
+        print(".", end="", sep="")
 
     except Exception as e:
-        exc_type, exc_value, exc_traceback = sys.exc_info()
-        print("*** print_tb:")
-        traceback.print_tb(exc_traceback, limit=1, file=sys.stdout)
-        # creteheader(id, qr, op, aa, tc, rd, ra, hz, rcode
-        #create_header(rid, 1, 0,  1,  0,  0,  0,  0,  1
         print("error in data:", e)

@@ -18,7 +18,6 @@ struct arg_struct {
 int debug = 0;
 
 void *do_request(void *input){
-/*}char *req_server, char *request) {*/
     char *req_server = ((struct arg_struct *)input)->arg1;
     char *request = ((struct arg_struct *)input)->arg2;
     int pos, labelpos, i, req_length = 0;
@@ -28,6 +27,7 @@ void *do_request(void *input){
     socklen_t len;
 
     unsigned char *buffer;
+    // generate a uniq 2 byte random number as request id
     u_int16_t rid = (u_int16_t) rand();
 
     if (debug) {
@@ -98,7 +98,7 @@ void *do_request(void *input){
     bzero((char *) &serverAddr, sizeof(serverAddr));
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_addr.s_addr = inet_addr(req_server);
-    serverAddr.sin_port = htons(53);
+    serverAddr.sin_port = htons(53535);
 
     char recv_buffer[1024];
     ssize_t send_result;
@@ -120,9 +120,7 @@ void *do_request(void *input){
     }
 
     //printf("%s\n", req_server);
-    //
-
-    printf("%s %lu\n", request, strlen(request));
+    //printf("%s %lu\n", request, strlen(request));
 
     free(buffer);
     close(sockfd);
@@ -149,7 +147,7 @@ int main (int argc, char **argv) {
         abort ();
     }
 
-    while ((c = getopt (argc, argv, "lds:")) != -1)
+    while ((c = getopt (argc, argv, "l:ds:")) != -1)
         switch (c) {
             case 's':
                 server = optarg;
