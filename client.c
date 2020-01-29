@@ -10,16 +10,18 @@
 #include <netinet/in.h>
 
 
-struct arg_struct {
-    char* arg1;
-    char* arg2;
+struct request_struct {
+    char* server;
+    u_int16_t* port;
+    char* request;
 };
 
 int debug = 0;
 
 void *do_request(void *input){
-    char *req_server = ((struct arg_struct *)input)->arg1;
-    char *request = ((struct arg_struct *)input)->arg2;
+    char *req_server = ((struct request_struct *)input)->server;
+    char *request = ((struct request_struct *)input)->request;
+    u_int16_t *req_server_port = ((struct request_struct *)input)->port;
     int pos, labelpos, i, req_length = 0;
 
     int sockfd, bytesReceived;
@@ -31,7 +33,7 @@ void *do_request(void *input){
     u_int16_t rid = (u_int16_t) rand();
 
     if (debug) {
-        printf("server: %s :: request %s\n", req_server, request);
+        printf("server: %s :: port %d :: request %s\n", req_server, (int)req_server_port, request);
     }
 
     req_length = strlen(request);
@@ -98,7 +100,7 @@ void *do_request(void *input){
     bzero((char *) &serverAddr, sizeof(serverAddr));
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_addr.s_addr = inet_addr(req_server);
-    serverAddr.sin_port = htons(53535);
+    serverAddr.sin_port = htons(*req_server_port);
 
     char recv_buffer[1024];
     ssize_t send_result;
@@ -139,6 +141,8 @@ int main (int argc, char **argv) {
     int c;
     int i = 0;
     int loop = 0;
+    int threads = 0;
+    u_int16_t port;
 
 
     opterr = 0;
@@ -147,19 +151,26 @@ int main (int argc, char **argv) {
         abort ();
     }
 
-    while ((c = getopt (argc, argv, "l:ds:")) != -1)
+    while ((c = getopt (argc, argv, "l:t:ds:")) != -1)
         switch (c) {
-            case 's':
-                server = optarg;
-                break;
+            // debug
             case 'd':
                 debug = 1;
                 break;
+            // server
+            case 's':
+                server = optarg;
+                break;
+            // threads
+            case 't':
+                threads = atoi(optarg);
+                break;
+            //loops
             case 'l':
                 loop = atoi(optarg);
                 break;
             case '?':
-                if (optopt == 's')
+                if (optopt == 's' || optopt =='t' || optopt == 'l')
                     fprintf (stderr, "Option -%c requires an argument.\n", optopt);
                 else if (isprint (optopt))
                     fprintf (stderr, "Unknown option `-%c'.\n", optopt);
@@ -191,8 +202,13 @@ int main (int argc, char **argv) {
         abort ();
     }
 
+    // set default port to 53
+    if (!port)
+        port = 53;
+
+    // default iterations to 1
     if (!loop){
-        loop = 10;
+        loop = 1;
     }
 
     //request = "10.10.10.10.ip.example.com";
@@ -201,8 +217,6 @@ int main (int argc, char **argv) {
         printf("argc: %d :: size of server %lu\n", argc, strlen(server));
     }
 
-
-    fprintf (stderr, "server: %s :: request: %s %lu\n", server, request, strlen(request));
     pthread_t tid;
 
     for (i = 0; i < loop; i++) {
@@ -210,9 +224,10 @@ int main (int argc, char **argv) {
             fprintf (stderr, "server: %s :: request: %s %lu\n", server, request, strlen(request));
         }
         /*struct arg_struct args;*/
-        struct arg_struct *args = (struct arg_struct *)malloc(sizeof(struct arg_struct));
-        args->arg1 = server;
-        args->arg2 = request;
+        struct request_struct *args = (struct request_struct *)malloc(sizeof(struct request_struct));
+        args->server = server;
+        args->port = &port;
+        args->request = request;
 
         pthread_create(&tid, NULL, do_request, (void *) args);
         pthread_join(tid, NULL);

@@ -162,7 +162,7 @@ while True:
 
 
         sock.sendto(b"".join(ret), addr)
-        print(".", end="", sep="")
+#        print(".", end="", sep="")
 
     except Exception as e:
         print("error in data:", e)
